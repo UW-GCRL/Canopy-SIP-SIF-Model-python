@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Canopy-SIP-SIF Model</title>
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/@stlite/mountable@0.75.0/build/stlite.css"
+  />
+  <style>
+    #loading-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      font-family: "Source Sans Pro", sans-serif;
+      background: #f0f2f6;
+      color: #262730;
+    }
+    #loading-screen h1 {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+    #loading-screen p {
+      font-size: 1.1rem;
+      color: #555;
+      margin: 0.3rem 0;
+    }
+    .spinner {
+      margin: 1.5rem 0;
+      width: 48px;
+      height: 48px;
+      border: 5px solid #ddd;
+      border-top: 5px solid #ff4b4b;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .loading-note {
+      font-size: 0.9rem;
+      color: #888;
+      margin-top: 1rem;
+      text-align: center;
+      max-width: 500px;
+    }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <div id="loading-screen">
+      <h1>Canopy-SIP-SIF Model</h1>
+      <p>Solar-Induced Fluorescence Simulation for Discrete Vegetation Canopies</p>
+      <div class="spinner"></div>
+      <p>Loading Python environment in your browser...</p>
+      <p class="loading-note">
+        First load may take 1&ndash;2 minutes while NumPy and other
+        packages are downloaded. Subsequent visits will be faster thanks to
+        browser caching.
+      </p>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/@stlite/mountable@0.75.0/build/stlite.js"></script>
+  <script>
+    stlite.mount(
+      {
+        requirements: ["numpy", "plotly", "pandas"],
+        entrypoint: "app.py",
+        files: {
+          "app.py": {
+            url: "app.py",
+          },
+          "demo_sif_data.csv": {
+            url: "demo_sif_data.csv",
+          },
+        },
+      },
+      document.getElementById("root")
+    );
+  </script>
+</body>
+</html>
