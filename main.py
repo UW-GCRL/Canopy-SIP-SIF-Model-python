@@ -46,26 +46,46 @@ def main():
     print(f"  PS II at 740nm:    {SRTE_Fs_fdir2[idx_740, nadir_idx]:.6f} W/m2/sr/um")
     print()
 
-    # Save plot
+    # Save plot using Plotly
     try:
-        import matplotlib.pyplot as plt
+        import plotly.graph_objects as go
 
-        fig, ax = plt.subplots(figsize=(10, 6))
-        ax.plot(wlf, SRTE_Fs_fdir_all[:, nadir_idx], 'r-', linewidth=2, label='Total SIF')
-        ax.plot(wlf, SRTE_Fs_fdir1[:, nadir_idx], 'b--', linewidth=1.5, label='PS I')
-        ax.plot(wlf, SRTE_Fs_fdir2[:, nadir_idx], 'g--', linewidth=1.5, label='PS II')
-        ax.set_xlabel('Wavelength (nm)', fontsize=12, fontweight='bold')
-        ax.set_ylabel('SIF Radiance (W m$^{-2}$ sr$^{-1}$ $\mu$m$^{-1}$)', fontsize=12, fontweight='bold')
-        ax.set_title('Simulated Canopy SIF Spectrum at Nadir View', fontsize=14)
-        ax.legend(loc='upper right', fontsize=11)
-        ax.set_xlim(640, 850)
-        ax.grid(True, alpha=0.3)
-        ax.tick_params(labelsize=11)
-        fig.tight_layout()
-        fig.savefig('sif_spectrum.png', dpi=150)
-        print("Plot saved to sif_spectrum.png")
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=wlf, y=SRTE_Fs_fdir_all[:, nadir_idx],
+            mode='lines', name='Total SIF',
+            line=dict(color='red', width=2.5),
+        ))
+        fig.add_trace(go.Scatter(
+            x=wlf, y=SRTE_Fs_fdir1[:, nadir_idx],
+            mode='lines', name='PS I',
+            line=dict(color='blue', width=1.5, dash='dash'),
+        ))
+        fig.add_trace(go.Scatter(
+            x=wlf, y=SRTE_Fs_fdir2[:, nadir_idx],
+            mode='lines', name='PS II',
+            line=dict(color='green', width=1.5, dash='dash'),
+        ))
+        fig.update_layout(
+            xaxis_title="Wavelength (nm)",
+            yaxis_title="SIF Radiance (W m⁻² sr⁻¹ μm⁻¹)",
+            title="Simulated Canopy SIF Spectrum at Nadir View",
+            xaxis=dict(range=[640, 850]),
+            template="plotly_white",
+            width=900, height=550,
+            legend=dict(x=0.7, y=0.95),
+        )
+        fig.write_html('sif_spectrum.html')
+        print("Interactive plot saved to sif_spectrum.html")
+
+        # Also save static image if kaleido is available
+        try:
+            fig.write_image('sif_spectrum.png', scale=2)
+            print("Static plot saved to sif_spectrum.png")
+        except (ImportError, ValueError):
+            pass
     except ImportError:
-        print("matplotlib not available, skipping plot generation.")
+        print("plotly not available, skipping plot generation.")
 
     print()
     print("Done.")

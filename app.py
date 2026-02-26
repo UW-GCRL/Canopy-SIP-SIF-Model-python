@@ -164,6 +164,66 @@ if 'result' in st.session_state:
     )
     st.plotly_chart(fig2, use_container_width=True)
 
+    # Polar axis plot
+    st.subheader("SIF Polar Plot (Principal Plane)")
+
+    # Build polar angles: forward scatter (VAA=0) as 180+VZA, backward (VAA=180) as -VZA
+    theta_polar = []
+    r_740 = []
+    r_687 = []
+    for i in range(len(va)):
+        vza = va[i, 0]
+        vaa = va[i, 1]
+        if vaa < 90:
+            theta_deg = 180.0 + vza  # Forward scattering direction
+        else:
+            theta_deg = 360.0 - vza  # Backward scattering direction
+        if vza == 0:
+            theta_deg = 0.0
+        theta_polar.append(theta_deg)
+        r_740.append(SRTE_all[idx_740, i])
+        r_687.append(SRTE_all[idx_687, i])
+
+    # Sort by theta for a clean line
+    order = np.argsort(theta_polar)
+    theta_sorted = np.array(theta_polar)[order]
+    r_740_sorted = np.array(r_740)[order]
+    r_687_sorted = np.array(r_687)[order]
+
+    fig3 = go.Figure()
+    fig3.add_trace(go.Scatterpolar(
+        theta=theta_sorted, r=r_740_sorted,
+        mode='lines+markers',
+        marker=dict(size=5, color='red'),
+        line=dict(color='red', width=2),
+        name='SIF at 740nm',
+    ))
+    fig3.add_trace(go.Scatterpolar(
+        theta=theta_sorted, r=r_687_sorted,
+        mode='lines+markers',
+        marker=dict(size=5, color='blue'),
+        line=dict(color='blue', width=2),
+        name='SIF at 687nm',
+    ))
+    fig3.update_layout(
+        polar=dict(
+            angularaxis=dict(
+                tickvals=[0, 120, 150, 180, 210, 240, 360],
+                ticktext=['Nadir', '-60°', '-30°', 'Forward<br>(Sun side)', '30°', '60°', 'Nadir'],
+                direction='clockwise',
+                rotation=90,
+            ),
+            radialaxis=dict(
+                title="SIF (W m⁻² sr⁻¹ μm⁻¹)",
+            ),
+        ),
+        title=f"SIF Polar Distribution — SZA={params['SZA']}°",
+        height=500,
+        legend=dict(x=0.02, y=0.98),
+        template="plotly_white",
+    )
+    st.plotly_chart(fig3, use_container_width=True)
+
     # Summary metrics
     st.subheader("Summary")
     c1, c2, c3, c4 = st.columns(4)

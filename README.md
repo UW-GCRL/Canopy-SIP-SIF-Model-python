@@ -31,7 +31,7 @@ The model computes:
 pip install -r requirements.txt
 ```
 
-Requirements: `numpy`, `scipy`, `matplotlib`
+Requirements: `numpy`, `scipy`, `plotly`
 
 ## Usage
 
