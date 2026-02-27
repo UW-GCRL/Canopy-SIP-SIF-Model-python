@@ -57,7 +57,7 @@
       <div class="spinner"></div>
       <p>Loading Python environment in your browser...</p>
       <p class="loading-note">
-        First load may take 1&ndash;2 minutes while NumPy and other
+        First load may take 1&ndash;2 minutes while NumPy, SciPy, and other
         packages are downloaded. Subsequent visits will be faster thanks to
         browser caching.
       </p>
@@ -67,14 +67,91 @@
   <script>
     stlite.mount(
       {
-        requirements: ["numpy", "plotly", "pandas"],
+        requirements: ["numpy", "scipy", "plotly", "pandas"],
         entrypoint: "app.py",
         files: {
           "app.py": {
-            url: "app.py?v=3",
+            url: "app.py?v=4",
           },
           "demo_sif_data.csv": {
             url: "demo_sif_data.csv?v=2",
+          },
+          // canopy_sip_sif package
+          "canopy_sip_sif/__init__.py": {
+            url: "canopy_sip_sif/__init__.py?v=1",
+          },
+          "canopy_sip_sif/model.py": {
+            url: "canopy_sip_sif/model.py?v=1",
+          },
+          "canopy_sip_sif/get_p_rho.py": {
+            url: "canopy_sip_sif/get_p_rho.py?v=1",
+          },
+          "canopy_sip_sif/get_rta.py": {
+            url: "canopy_sip_sif/get_rta.py?v=1",
+          },
+          "canopy_sip_sif/phase.py": {
+            url: "canopy_sip_sif/phase.py?v=1",
+          },
+          "canopy_sip_sif/volscat.py": {
+            url: "canopy_sip_sif/volscat.py?v=1",
+          },
+          "canopy_sip_sif/campbell.py": {
+            url: "canopy_sip_sif/campbell.py?v=1",
+          },
+          "canopy_sip_sif/dladgen.py": {
+            url: "canopy_sip_sif/dladgen.py?v=1",
+          },
+          "canopy_sip_sif/cixy.py": {
+            url: "canopy_sip_sif/cixy.py?v=1",
+          },
+          "canopy_sip_sif/get_hsf_go.py": {
+            url: "canopy_sip_sif/get_hsf_go.py?v=1",
+          },
+          "canopy_sip_sif/sunshade.py": {
+            url: "canopy_sip_sif/sunshade.py?v=1",
+          },
+          "canopy_sip_sif/sunshade_h.py": {
+            url: "canopy_sip_sif/sunshade_h.py?v=1",
+          },
+          "canopy_sip_sif/sunshade_kt_he.py": {
+            url: "canopy_sip_sif/sunshade_kt_he.py?v=1",
+          },
+          "canopy_sip_sif/hemi_single.py": {
+            url: "canopy_sip_sif/hemi_single.py?v=1",
+          },
+          "canopy_sip_sif/hemi_dif.py": {
+            url: "canopy_sip_sif/hemi_dif.py?v=1",
+          },
+          "canopy_sip_sif/hemi_hemi.py": {
+            url: "canopy_sip_sif/hemi_hemi.py?v=1",
+          },
+          "canopy_sip_sif/hemi_interceptance.py": {
+            url: "canopy_sip_sif/hemi_interceptance.py?v=1",
+          },
+          // Data files
+          "data/leafopt_P6.npz": {
+            url: "data/leafopt_P6.npz?v=1",
+          },
+          "data/Esun_SIP.npz": {
+            url: "data/Esun_SIP.npz?v=1",
+          },
+          "data/rs_01.npz": {
+            url: "data/rs_01.npz?v=1",
+          },
+          "data/gap_tot.csv": {
+            url: "data/gap_tot.csv?v=1",
+          },
+          "data/gap_betw.csv": {
+            url: "data/gap_betw.csv?v=1",
+          },
+          "data/gap_within.csv": {
+            url: "data/gap_within.csv?v=1",
+          },
+          "data/CI_within.csv": {
+            url: "data/CI_within.csv?v=1",
+          },
+          "data/HET01_true_all.txt": {
+            url: "data/HET01_true_all.txt?v=1",
           },
         },
       },

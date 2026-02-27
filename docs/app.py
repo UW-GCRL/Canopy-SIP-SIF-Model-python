@@ -1,11 +1,9 @@
 """
 Canopy-SIP-SIF Model — Web Interface (Streamlit / stlite).
 
-This version runs in the browser via stlite. Due to the heavy computation
-required for SIF simulation, it uses pre-computed demo results for display
-and allows users to explore the data interactively.
-
-For custom parameter simulations, download the code and run locally.
+This version runs in the browser via stlite. Users can explore pre-computed
+demo results instantly, or run custom simulations with adjustable parameters
+(note: in-browser simulations may take several minutes).
 """
 
 import streamlit as st
@@ -20,192 +18,398 @@ st.markdown(
     "using **Geometric-Optical (GO)** theory and **Spectral Invariants (p-theory)**."
 )
 
-# Load pre-computed demo results
-@st.cache_data
-def load_demo_data():
-    import io
-    # Load the pre-computed CSV data (generated from MATLAB reference)
-    data = np.genfromtxt('demo_sif_data.csv', delimiter=',', skip_header=1)
-    wlf = data[:, 0].astype(int)
-    # Columns: wavelength, total_nadir, ps1_nadir, ps2_nadir, then 25 angles of total SIF
-    total_nadir = data[:, 1]
-    ps1_nadir = data[:, 2]
-    ps2_nadir = data[:, 3]
-    # Angular data (25 columns for each view angle)
-    total_all = data[:, 4:]
-    return wlf, total_nadir, ps1_nadir, ps2_nadir, total_all
+# ── Sidebar: Parameters ─────────────────────────────────────────────────
+with st.sidebar:
+    st.header("Model Parameters")
 
-try:
-    wlf, total_nadir, ps1_nadir, ps2_nadir, total_all = load_demo_data()
+    mode = st.radio(
+        "Mode",
+        ["Demo (instant)", "Custom Simulation"],
+        help="Demo shows pre-computed results instantly. "
+             "Custom runs the full simulation in-browser (may take 2-5 min)."
+    )
 
-    # View angle selection
-    with st.sidebar:
-        st.header("Explore Results")
+    if mode == "Custom Simulation":
+        st.subheader("Sun Geometry")
+        SZA = st.slider("Sun Zenith Angle (SZA) [deg]", 0, 60, 20, 5)
+        SAA = st.slider("Sun Azimuth Angle (SAA) [deg]", 0, 360, 0, 10)
+
+        st.subheader("Canopy Structure")
+        LAI = st.slider("Leaf Area Index (LAI)", 1.0, 10.0, 5.0, 0.5)
+        Height = st.slider("Canopy Height [m]", 5.0, 40.0, 20.0, 1.0)
+        Crowndeepth = st.slider("Crown Depth [m]", 2.0, 25.0, 12.86, 0.5)
+        Height_c = st.slider("Crown Center Height [m]", 2.0, 20.0, 6.87, 0.5)
+        dthr = st.slider("Diameter to Height Ratio (dthr)", 0.1, 2.0, 0.86, 0.05,
+                          help="Crown width / canopy height ratio")
+        HotSpotPar = st.slider("Hotspot Parameter", 0.001, 0.1, 0.02, 0.005,
+                                help="Leaf-scale hotspot parameter")
+        D = st.slider("Diffuse Fraction (D)", 0.0, 1.0, 0.0, 0.05)
+
+        st.subheader("Leaf Angle Distribution")
+        TypeLidf = st.selectbox("LIDF Type", [2, 1],
+                                format_func=lambda x: "Campbell (single-param)" if x == 2 else "Two-parameter")
+        if TypeLidf == 2:
+            LIDFa = st.slider("Average Leaf Angle [deg]", 10.0, 80.0, 57.3, 1.0,
+                               help="57.3 = spherical, ~27 = planophile, ~63 = erectophile")
+            LIDFb = 0.0
+        else:
+            LIDFa = st.slider("LIDFa", -1.0, 1.0, -0.35, 0.05)
+            LIDFb = st.slider("LIDFb", -1.0, 1.0, -0.15, 0.05)
+    else:
         st.markdown("**Demo Parameters**: SZA=20°, LAI=5, Campbell(57.3°)")
         st.divider()
-
         # View angles: -60 to 60 in 5-degree steps
         vza_options = list(range(-60, 65, 5))
-        nadir_idx = 12  # Index for VZA=0
+        nadir_idx = 12
         selected_vza = st.selectbox(
-            "View Zenith Angle [°]",
+            "View Zenith Angle [deg]",
             vza_options,
             index=nadir_idx,
             help="Negative = forward scatter, Positive = backward scatter"
         )
         view_idx = vza_options.index(selected_vza)
 
-    col1, col2 = st.columns([2, 1])
+# ── Demo Mode ────────────────────────────────────────────────────────────
+if mode == "Demo (instant)":
+    @st.cache_data
+    def load_demo_data():
+        data = np.genfromtxt('demo_sif_data.csv', delimiter=',', skip_header=1)
+        wlf = data[:, 0].astype(int)
+        total_nadir = data[:, 1]
+        ps1_nadir = data[:, 2]
+        ps2_nadir = data[:, 3]
+        total_all = data[:, 4:]
+        return wlf, total_nadir, ps1_nadir, ps2_nadir, total_all
 
-    with col1:
-        st.subheader("SIF Spectrum")
+    try:
+        wlf, total_nadir, ps1_nadir, ps2_nadir, total_all = load_demo_data()
 
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=wlf, y=total_all[:, view_idx],
-            mode='lines', name='Total SIF',
-            line=dict(color='red', width=2.5),
-        ))
-        if view_idx == nadir_idx:
+        col1, col2 = st.columns([2, 1])
+
+        with col1:
+            st.subheader("SIF Spectrum")
+            fig = go.Figure()
             fig.add_trace(go.Scatter(
-                x=wlf, y=ps1_nadir,
+                x=wlf, y=total_all[:, view_idx],
+                mode='lines', name='Total SIF',
+                line=dict(color='red', width=2.5),
+            ))
+            if view_idx == nadir_idx:
+                fig.add_trace(go.Scatter(
+                    x=wlf, y=ps1_nadir,
+                    mode='lines', name='PS I',
+                    line=dict(color='blue', width=1.5, dash='dash'),
+                ))
+                fig.add_trace(go.Scatter(
+                    x=wlf, y=ps2_nadir,
+                    mode='lines', name='PS II',
+                    line=dict(color='green', width=1.5, dash='dash'),
+                ))
+            fig.update_layout(
+                xaxis_title="Wavelength (nm)",
+                yaxis_title="SIF Radiance (W m\u207b\u00b2 sr\u207b\u00b9 \u03bcm\u207b\u00b9)",
+                title=f"Canopy SIF \u2014 SZA=20\u00b0, VZA={selected_vza}\u00b0",
+                xaxis=dict(range=[640, 850]),
+                template="plotly_white",
+                height=500,
+                legend=dict(x=0.7, y=0.95),
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        with col2:
+            st.subheader("Key Wavelengths")
+            idx_687 = np.argmin(np.abs(wlf - 687))
+            idx_740 = np.argmin(np.abs(wlf - 740))
+            import pandas as pd
+            sif_data = total_all[:, view_idx]
+            df_key = pd.DataFrame({
+                'Wavelength': ['687 nm', '740 nm', 'Peak'],
+                'SIF Value': [
+                    f"{sif_data[idx_687]:.6f}",
+                    f"{sif_data[idx_740]:.6f}",
+                    f"{sif_data.max():.6f}",
+                ],
+            })
+            st.dataframe(df_key, use_container_width=True, hide_index=True)
+            df_full = pd.DataFrame({
+                'Wavelength (nm)': wlf,
+                'Total SIF': np.round(sif_data, 8),
+            })
+            csv = df_full.to_csv(index=False)
+            st.download_button("Download SIF CSV", csv, "SIF_results.csv", "text/csv")
+
+        # Angular dependence plot
+        st.subheader("SIF Angular Distribution (at 740 nm)")
+        vza_arr = np.array(vza_options, dtype=float)
+
+        fig2 = go.Figure()
+        fig2.add_trace(go.Scatter(
+            x=vza_arr, y=total_all[idx_740, :],
+            mode='lines+markers',
+            marker=dict(size=6, color='red'),
+            line=dict(color='red', width=2),
+            name='SIF at 740nm'
+        ))
+        fig2.add_trace(go.Scatter(
+            x=vza_arr, y=total_all[idx_687, :],
+            mode='lines+markers',
+            marker=dict(size=6, color='blue'),
+            line=dict(color='blue', width=2),
+            name='SIF at 687nm'
+        ))
+        fig2.update_layout(
+            xaxis_title="View Zenith Angle (\u00b0)",
+            yaxis_title="SIF Radiance (W m\u207b\u00b2 sr\u207b\u00b9 \u03bcm\u207b\u00b9)",
+            title="SIF Angular Distribution in the Principal Plane",
+            xaxis=dict(range=[-65, 65], dtick=10),
+            template="plotly_white",
+            height=400,
+            legend=dict(x=0.02, y=0.98),
+        )
+        st.plotly_chart(fig2, use_container_width=True)
+
+        # Polar plot
+        st.subheader("SIF Polar Plot (Principal Plane)")
+        theta_polar = 90.0 - vza_arr
+        r_740_arr = total_all[idx_740, :]
+        r_687_arr = total_all[idx_687, :]
+
+        fig3 = go.Figure()
+        fig3.add_trace(go.Scatterpolar(
+            theta=theta_polar, r=r_740_arr,
+            mode='lines+markers',
+            marker=dict(size=5, color='red'),
+            line=dict(color='red', width=2),
+            name='SIF at 740nm',
+        ))
+        fig3.add_trace(go.Scatterpolar(
+            theta=theta_polar, r=r_687_arr,
+            mode='lines+markers',
+            marker=dict(size=5, color='blue'),
+            line=dict(color='blue', width=2),
+            name='SIF at 687nm',
+        ))
+        fig3.update_layout(
+            polar=dict(
+                sector=[20, 160],
+                angularaxis=dict(
+                    tickvals=[30, 50, 70, 90, 110, 130, 150],
+                    ticktext=['Back 60\u00b0', 'Back 40\u00b0', 'Back 20\u00b0', 'Nadir',
+                              'Fwd 20\u00b0', 'Fwd 40\u00b0', 'Fwd 60\u00b0'],
+                ),
+                radialaxis=dict(
+                    title="SIF (W m\u207b\u00b2 sr\u207b\u00b9 \u03bcm\u207b\u00b9)",
+                    angle=90,
+                    tickangle=90,
+                ),
+            ),
+            title="SIF Polar Distribution \u2014 SZA=20\u00b0",
+            height=550,
+            legend=dict(x=0.85, y=0.95),
+            template="plotly_white",
+        )
+        st.plotly_chart(fig3, use_container_width=True)
+
+        # Summary metrics
+        st.subheader("Summary (Nadir View)")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("SIF at 687nm", f"{total_nadir[idx_687]:.4f}")
+        c2.metric("SIF at 740nm", f"{total_nadir[idx_740]:.4f}")
+        c3.metric("Peak SIF", f"{total_nadir.max():.4f}")
+        c4.metric("PS I / Total at 740nm", f"{ps1_nadir[idx_740]/total_nadir[idx_740]*100:.1f}%")
+
+    except Exception as e:
+        st.error(f"Error loading demo data: {e}")
+        st.info("Please ensure demo_sif_data.csv is available.")
+
+# ── Custom Simulation Mode ───────────────────────────────────────────────
+else:
+    st.caption(
+        "Note: In-browser simulation uses WebAssembly and may take 2\u20135 minutes. "
+        "For faster results, download the code and run locally."
+    )
+    if st.button("Run Simulation", type="primary", use_container_width=True):
+        with st.spinner("Running SIF simulation (this may take several minutes in-browser)..."):
+            import time
+            t0 = time.perf_counter()
+
+            from canopy_sip_sif import run_simulation
+            result = run_simulation(
+                SZA=SZA, SAA=SAA, LAI=LAI,
+                Crowndeepth=Crowndeepth, Height=Height, Height_c=Height_c,
+                dthr=dthr, HotSpotPar=HotSpotPar,
+                D=D, TypeLidf=TypeLidf, LIDFa=LIDFa, LIDFb=LIDFb,
+            )
+
+            elapsed = time.perf_counter() - t0
+
+        st.session_state['result'] = result
+        st.session_state['params'] = {'SZA': SZA, 'LAI': LAI}
+        st.session_state['elapsed'] = elapsed
+
+    if 'result' in st.session_state:
+        result = st.session_state['result']
+        params = st.session_state['params']
+        wlf = result['wlf']
+        SRTE_all = result['SRTE_Fs_fdir_all']
+        SRTE_ps1 = result['SRTE_Fs_fdir1']
+        SRTE_ps2 = result['SRTE_Fs_fdir2']
+        nadir_idx = 12
+
+        col1, col2 = st.columns([2, 1])
+
+        with col1:
+            st.subheader("Nadir SIF Spectrum")
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                x=wlf, y=SRTE_all[:, nadir_idx],
+                mode='lines', name='Total SIF',
+                line=dict(color='red', width=2.5),
+            ))
+            fig.add_trace(go.Scatter(
+                x=wlf, y=SRTE_ps1[:, nadir_idx],
                 mode='lines', name='PS I',
                 line=dict(color='blue', width=1.5, dash='dash'),
             ))
             fig.add_trace(go.Scatter(
-                x=wlf, y=ps2_nadir,
+                x=wlf, y=SRTE_ps2[:, nadir_idx],
                 mode='lines', name='PS II',
                 line=dict(color='green', width=1.5, dash='dash'),
             ))
-        fig.update_layout(
-            xaxis_title="Wavelength (nm)",
-            yaxis_title="SIF Radiance (W m⁻² sr⁻¹ μm⁻¹)",
-            title=f"Canopy SIF — SZA=20°, VZA={selected_vza}°",
-            xaxis=dict(range=[640, 850]),
+            fig.update_layout(
+                xaxis_title="Wavelength (nm)",
+                yaxis_title="SIF Radiance (W m\u207b\u00b2 sr\u207b\u00b9 \u03bcm\u207b\u00b9)",
+                title=f"Canopy SIF \u2014 SZA={params['SZA']}\u00b0, LAI={params['LAI']}",
+                xaxis=dict(range=[640, 850]),
+                template="plotly_white",
+                height=500,
+                legend=dict(x=0.7, y=0.95),
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        with col2:
+            st.subheader("SIF Values at Key Wavelengths")
+            idx_687 = np.argmin(np.abs(wlf - 687))
+            idx_740 = np.argmin(np.abs(wlf - 740))
+            import pandas as pd
+            df_key = pd.DataFrame({
+                'Wavelength': ['687 nm', '740 nm', 'Peak'],
+                'Total SIF': [
+                    f"{SRTE_all[idx_687, nadir_idx]:.6f}",
+                    f"{SRTE_all[idx_740, nadir_idx]:.6f}",
+                    f"{SRTE_all[:, nadir_idx].max():.6f}",
+                ],
+                'PS I': [
+                    f"{SRTE_ps1[idx_687, nadir_idx]:.6f}",
+                    f"{SRTE_ps1[idx_740, nadir_idx]:.6f}",
+                    f"{SRTE_ps1[:, nadir_idx].max():.6f}",
+                ],
+                'PS II': [
+                    f"{SRTE_ps2[idx_687, nadir_idx]:.6f}",
+                    f"{SRTE_ps2[idx_740, nadir_idx]:.6f}",
+                    f"{SRTE_ps2[:, nadir_idx].max():.6f}",
+                ],
+            })
+            st.dataframe(df_key, use_container_width=True, hide_index=True)
+            df_full = pd.DataFrame({
+                'Wavelength (nm)': wlf,
+                'Total SIF': np.round(SRTE_all[:, nadir_idx], 8),
+                'PS I': np.round(SRTE_ps1[:, nadir_idx], 8),
+                'PS II': np.round(SRTE_ps2[:, nadir_idx], 8),
+            })
+            csv = df_full.to_csv(index=False)
+            st.download_button("Download Nadir SIF CSV", csv, "SIF_nadir_results.csv", "text/csv")
+
+        # Angular dependence plot
+        st.subheader("SIF Angular Dependence (at 740 nm)")
+        va = result['va']
+        signed_vza = np.where(va[:, 1] < 90, -va[:, 0], va[:, 0])
+
+        fig2 = go.Figure()
+        fig2.add_trace(go.Scatter(
+            x=signed_vza, y=SRTE_all[idx_740, :],
+            mode='lines+markers',
+            marker=dict(size=6, color='red'),
+            line=dict(color='red', width=2),
+            name='Total SIF at 740nm'
+        ))
+        fig2.add_trace(go.Scatter(
+            x=signed_vza, y=SRTE_all[idx_687, :],
+            mode='lines+markers',
+            marker=dict(size=6, color='blue'),
+            line=dict(color='blue', width=2),
+            name='Total SIF at 687nm'
+        ))
+        fig2.update_layout(
+            xaxis_title="View Zenith Angle (deg)",
+            yaxis_title="SIF (W m\u207b\u00b2 sr\u207b\u00b9 \u03bcm\u207b\u00b9)",
+            title="SIF Angular Distribution in the Principal Plane",
+            xaxis=dict(range=[-65, 65], dtick=10),
             template="plotly_white",
-            height=500,
-            legend=dict(x=0.7, y=0.95),
+            height=400,
+            legend=dict(x=0.02, y=0.98),
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig2, use_container_width=True)
 
-    with col2:
-        st.subheader("Key Wavelengths")
+        # Polar plot
+        st.subheader("SIF Polar Plot (Principal Plane)")
+        theta_polar = 90.0 - signed_vza
+        r_740_arr = SRTE_all[idx_740, :]
+        r_687_arr = SRTE_all[idx_687, :]
 
-        idx_687 = np.argmin(np.abs(wlf - 687))
-        idx_740 = np.argmin(np.abs(wlf - 740))
-
-        import pandas as pd
-        sif_data = total_all[:, view_idx]
-        df_key = pd.DataFrame({
-            'Wavelength': ['687 nm', '740 nm', 'Peak'],
-            'SIF Value': [
-                f"{sif_data[idx_687]:.6f}",
-                f"{sif_data[idx_740]:.6f}",
-                f"{sif_data.max():.6f}",
-            ],
-        })
-        st.dataframe(df_key, use_container_width=True, hide_index=True)
-
-        # Download CSV
-        df_full = pd.DataFrame({
-            'Wavelength (nm)': wlf,
-            'Total SIF': np.round(sif_data, 8),
-        })
-        csv = df_full.to_csv(index=False)
-        st.download_button("Download SIF CSV", csv, "SIF_results.csv", "text/csv")
-
-    # Angular dependence plot
-    st.subheader("SIF Angular Distribution (at 740 nm)")
-    vza_arr = np.array(vza_options, dtype=float)
-
-    fig2 = go.Figure()
-    fig2.add_trace(go.Scatter(
-        x=vza_arr, y=total_all[idx_740, :],
-        mode='lines+markers',
-        marker=dict(size=6, color='red'),
-        line=dict(color='red', width=2),
-        name='SIF at 740nm'
-    ))
-    fig2.add_trace(go.Scatter(
-        x=vza_arr, y=total_all[idx_687, :],
-        mode='lines+markers',
-        marker=dict(size=6, color='blue'),
-        line=dict(color='blue', width=2),
-        name='SIF at 687nm'
-    ))
-    fig2.update_layout(
-        xaxis_title="View Zenith Angle (°)",
-        yaxis_title="SIF Radiance (W m⁻² sr⁻¹ μm⁻¹)",
-        title="SIF Angular Distribution in the Principal Plane",
-        xaxis=dict(range=[-65, 65], dtick=10),
-        template="plotly_white",
-        height=400,
-        legend=dict(x=0.02, y=0.98),
-    )
-    st.plotly_chart(fig2, use_container_width=True)
-
-    # Polar axis plot (semicircular fan for principal plane)
-    st.subheader("SIF Polar Plot (Principal Plane)")
-
-    # Map signed VZA to polar angle: theta = 90 - signed_VZA
-    # Forward -60° → 150° (upper-left), Nadir 0° → 90° (top), Backward +60° → 30° (upper-right)
-    theta_polar = 90.0 - vza_arr
-    r_740_arr = total_all[idx_740, :]
-    r_687_arr = total_all[idx_687, :]
-
-    fig3 = go.Figure()
-    fig3.add_trace(go.Scatterpolar(
-        theta=theta_polar, r=r_740_arr,
-        mode='lines+markers',
-        marker=dict(size=5, color='red'),
-        line=dict(color='red', width=2),
-        name='SIF at 740nm',
-    ))
-    fig3.add_trace(go.Scatterpolar(
-        theta=theta_polar, r=r_687_arr,
-        mode='lines+markers',
-        marker=dict(size=5, color='blue'),
-        line=dict(color='blue', width=2),
-        name='SIF at 687nm',
-    ))
-    fig3.update_layout(
-        polar=dict(
-            sector=[20, 160],
-            angularaxis=dict(
-                tickvals=[30, 50, 70, 90, 110, 130, 150],
-                ticktext=['Back 60°', 'Back 40°', 'Back 20°', 'Nadir',
-                          'Fwd 20°', 'Fwd 40°', 'Fwd 60°'],
+        fig3 = go.Figure()
+        fig3.add_trace(go.Scatterpolar(
+            theta=theta_polar, r=r_740_arr,
+            mode='lines+markers',
+            marker=dict(size=5, color='red'),
+            line=dict(color='red', width=2),
+            name='SIF at 740nm',
+        ))
+        fig3.add_trace(go.Scatterpolar(
+            theta=theta_polar, r=r_687_arr,
+            mode='lines+markers',
+            marker=dict(size=5, color='blue'),
+            line=dict(color='blue', width=2),
+            name='SIF at 687nm',
+        ))
+        fig3.update_layout(
+            polar=dict(
+                sector=[20, 160],
+                angularaxis=dict(
+                    tickvals=[30, 50, 70, 90, 110, 130, 150],
+                    ticktext=['Back 60\u00b0', 'Back 40\u00b0', 'Back 20\u00b0', 'Nadir',
+                              'Fwd 20\u00b0', 'Fwd 40\u00b0', 'Fwd 60\u00b0'],
+                ),
+                radialaxis=dict(
+                    title="SIF (W m\u207b\u00b2 sr\u207b\u00b9 \u03bcm\u207b\u00b9)",
+                    angle=90,
+                    tickangle=90,
+                ),
             ),
-            radialaxis=dict(
-                title="SIF (W m⁻² sr⁻¹ μm⁻¹)",
-                angle=90,
-                tickangle=90,
-            ),
-        ),
-        title="SIF Polar Distribution — SZA=20°",
-        height=550,
-        legend=dict(x=0.85, y=0.95),
-        template="plotly_white",
-    )
-    st.plotly_chart(fig3, use_container_width=True)
+            title=f"SIF Polar Distribution \u2014 SZA={params['SZA']}\u00b0",
+            height=550,
+            legend=dict(x=0.85, y=0.95),
+            template="plotly_white",
+        )
+        st.plotly_chart(fig3, use_container_width=True)
 
-    # Summary metrics
-    st.subheader("Summary (Nadir View)")
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("SIF at 687nm", f"{total_nadir[idx_687]:.4f}")
-    c2.metric("SIF at 740nm", f"{total_nadir[idx_740]:.4f}")
-    c3.metric("Peak SIF", f"{total_nadir.max():.4f}")
-    c4.metric("PS I / Total at 740nm", f"{ps1_nadir[idx_740]/total_nadir[idx_740]*100:.1f}%")
+        # Summary metrics
+        st.subheader("Summary")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("SIF at 687nm", f"{SRTE_all[idx_687, nadir_idx]:.4f}")
+        c2.metric("SIF at 740nm", f"{SRTE_all[idx_740, nadir_idx]:.4f}")
+        c3.metric("Peak SIF", f"{SRTE_all[:, nadir_idx].max():.4f}")
+        c4.metric("Runtime", f"{st.session_state.get('elapsed', 0):.1f} s")
 
-except Exception as e:
-    st.error(f"Error loading demo data: {e}")
-    st.info("Please ensure demo_sif_data.csv is available.")
+    else:
+        st.info("Set parameters in the sidebar and click **Run Simulation** to generate results.")
 
 # Footer
 st.divider()
 st.markdown(
-    "**Note**: This demo shows pre-computed results (SZA=20°, LAI=5). "
-    "For custom simulations, download the code from "
+    "**Note**: Demo mode shows pre-computed results (SZA=20\u00b0, LAI=5). "
+    "Custom simulation mode runs the full model in-browser. "
+    "For faster simulations, download the code from "
     "[GitHub](https://github.com/UW-GCRL/Canopy-SIP-SIF-Model-python) and run locally."
 )
 st.markdown(

@@ -26,3 +26,6 @@ Thumbs.db
 !data/*.csv
 !data/*.npz
 !data/*.txt
+!docs/data/*.csv
+!docs/data/*.npz
+!docs/data/*.txt
