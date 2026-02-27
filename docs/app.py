@@ -144,41 +144,25 @@ try:
     )
     st.plotly_chart(fig2, use_container_width=True)
 
-    # Polar axis plot
+    # Polar axis plot (semicircular fan for principal plane)
     st.subheader("SIF Polar Plot (Principal Plane)")
 
-    # Build polar angles: forward scatter (VAA=0) maps to 180+VZA, backward (VAA=180) maps to 360-VZA
-    theta_polar = []
-    r_740 = []
-    r_687 = []
-    for i in range(len(vza_options)):
-        vza = abs(vza_options[i])
-        if vza_options[i] < 0:
-            theta_deg = 180.0 + vza  # Forward scattering (sun side)
-        elif vza_options[i] > 0:
-            theta_deg = 360.0 - vza  # Backward scattering
-        else:
-            theta_deg = 0.0  # Nadir
-        theta_polar.append(theta_deg)
-        r_740.append(total_all[idx_740, i])
-        r_687.append(total_all[idx_687, i])
-
-    # Sort by theta for a clean line
-    order = np.argsort(theta_polar)
-    theta_sorted = np.array(theta_polar)[order]
-    r_740_sorted = np.array(r_740)[order]
-    r_687_sorted = np.array(r_687)[order]
+    # Map signed VZA to polar angle: theta = 90 - signed_VZA
+    # Forward -60° → 150° (upper-left), Nadir 0° → 90° (top), Backward +60° → 30° (upper-right)
+    theta_polar = 90.0 - vza_arr
+    r_740_arr = total_all[idx_740, :]
+    r_687_arr = total_all[idx_687, :]
 
     fig3 = go.Figure()
     fig3.add_trace(go.Scatterpolar(
-        theta=theta_sorted, r=r_740_sorted,
+        theta=theta_polar, r=r_740_arr,
         mode='lines+markers',
         marker=dict(size=5, color='red'),
         line=dict(color='red', width=2),
         name='SIF at 740nm',
     ))
     fig3.add_trace(go.Scatterpolar(
-        theta=theta_sorted, r=r_687_sorted,
+        theta=theta_polar, r=r_687_arr,
         mode='lines+markers',
         marker=dict(size=5, color='blue'),
         line=dict(color='blue', width=2),
@@ -186,19 +170,21 @@ try:
     ))
     fig3.update_layout(
         polar=dict(
+            sector=[20, 160],
             angularaxis=dict(
-                tickvals=[0, 120, 150, 180, 210, 240, 360],
-                ticktext=['Nadir', '-60°', '-30°', 'Forward<br>(Sun side)', '30°', '60°', 'Nadir'],
-                direction='clockwise',
-                rotation=90,
+                tickvals=[30, 50, 70, 90, 110, 130, 150],
+                ticktext=['Back 60°', 'Back 40°', 'Back 20°', 'Nadir',
+                          'Fwd 20°', 'Fwd 40°', 'Fwd 60°'],
             ),
             radialaxis=dict(
                 title="SIF (W m⁻² sr⁻¹ μm⁻¹)",
+                angle=90,
+                tickangle=90,
             ),
         ),
         title="SIF Polar Distribution — SZA=20°",
-        height=500,
-        legend=dict(x=0.02, y=0.98),
+        height=550,
+        legend=dict(x=0.85, y=0.95),
         template="plotly_white",
     )
     st.plotly_chart(fig3, use_container_width=True)
